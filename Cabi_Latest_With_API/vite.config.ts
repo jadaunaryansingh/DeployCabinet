@@ -31,14 +31,11 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     __DEV__: mode === "development",
+    global: 'globalThis',
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
     exclude: ['firebase'],
-  },
-  define: {
-    __DEV__: mode === "development",
-    global: 'globalThis',
   },
 }));
 
