@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          firebase: ['firebase'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
         },
       },
@@ -34,7 +33,12 @@ export default defineConfig(({ mode }) => ({
     __DEV__: mode === "development",
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'firebase'],
+    include: ['react', 'react-dom'],
+    exclude: ['firebase'],
+  },
+  define: {
+    __DEV__: mode === "development",
+    global: 'globalThis',
   },
 }));
 
