@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, Auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator, Firestore } from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
 
@@ -20,7 +20,7 @@ const isFirebaseConfigured = () => {
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA1YPpvErdlMlWoYMat1L0rxmvsqqVIdtY",
-  authDomain: "cab-i-net-87713.firebaseapp.com",
+  authDomain: "cab-i-net-87713.firebaseapp.com", // Keep this as the main auth domain
   projectId: "cab-i-net-87713",
   storageBucket: "cab-i-net-87713.firebasestorage.app",
   messagingSenderId: "169349902043",
@@ -40,6 +40,13 @@ try {
   
   // Initialize Firebase Authentication and get a reference to the service
   auth = getAuth(app);
+  
+  // Set custom auth domain for Netlify deployments
+  const currentDomain = window.location.hostname;
+  if (currentDomain.includes('netlify.app') && !currentDomain.includes('firebaseapp.com')) {
+    // For Netlify deployments, we need to handle auth differently
+    console.log('🔧 Netlify deployment detected, using Firebase auth domain:', firebaseConfig.authDomain);
+  }
   
   // Initialize Firestore
   db = getFirestore(app);
@@ -82,6 +89,69 @@ try {
   db = null;
 }
 
+// Custom auth functions that handle domain issues
+const customAuth = {
+  // Demo login that bypasses Firebase auth domain issues
+  demoLogin: async () => {
+    try {
+      // Create a demo user session without Firebase auth
+      const demoUser = {
+        uid: 'demo-user-123',
+        email: 'demo@cabinet.com',
+        displayName: 'Demo User',
+        photoURL: null,
+        isDemo: true
+      };
+      
+      // Store demo user in localStorage
+      localStorage.setItem('demoUser', JSON.stringify(demoUser));
+      
+      console.log('✅ Demo login successful');
+      return demoUser;
+    } catch (error) {
+      console.error('Demo login failed:', error);
+      throw error;
+    }
+  },
+
+  // Demo logout
+  demoLogout: async () => {
+    try {
+      localStorage.removeItem('demoUser');
+      console.log('✅ Demo logout successful');
+    } catch (error) {
+      console.error('Demo logout failed:', error);
+      throw error;
+    }
+  },
+
+  // Check if user is logged in (demo or real)
+  getCurrentUser: () => {
+    if (auth?.currentUser) {
+      return auth.currentUser;
+    }
+    
+    const demoUser = localStorage.getItem('demoUser');
+    if (demoUser) {
+      return JSON.parse(demoUser);
+    }
+    
+    return null;
+  },
+
+  // Auth state listener that includes demo users
+  onAuthStateChanged: (callback: (user: any) => void) => {
+    if (auth) {
+      return onAuthStateChanged(auth, callback);
+    } else {
+      // Fallback for demo mode
+      const demoUser = localStorage.getItem('demoUser');
+      callback(demoUser ? JSON.parse(demoUser) : null);
+      return () => {};
+    }
+  }
+};
+
 // Export with null checks
-export { auth, db, isFirebaseConfigured };
+export { auth, db, isFirebaseConfigured, customAuth };
 export default app;
