@@ -189,8 +189,15 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-6 gradient-gold rounded-full flex items-center justify-center animate-breathe">
-            <span className="text-3xl">🚗</span>
+          <div className="relative mx-auto mb-6">
+            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-cabinet-yellow/60 bg-cabinet-yellow/10 p-2 hover-lift magnetic animate-breathe">
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets%2F39a2607ac6ea47489c1c09edb4355799%2F542a7c303535476981e07aa791111a6b?format=webp&width=800"
+                alt="CAB-I-NET Logo"
+                className="w-full h-full object-contain rounded-full animate-glow-pulse hover:scale-110 transition-all duration-500"
+              />
+            </div>
+            <div className="absolute inset-0 w-24 h-24 bg-cabinet-yellow/20 rounded-full blur-2xl animate-breathe"></div>
           </div>
           <h1 className="text-4xl font-display font-black text-gradient text-shadow-glow mb-3">
             CAB-I-NET
