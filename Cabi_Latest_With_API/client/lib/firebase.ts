@@ -20,7 +20,7 @@ const isFirebaseConfigured = () => {
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA1YPpvErdlMlWoYMat1L0rxmvsqqVIdtY",
-  authDomain: "luxury-pixie-1db267.netlify.app",
+  authDomain: "cab-i-net-87713.firebaseapp.com",
   projectId: "cab-i-net-87713",
   storageBucket: "cab-i-net-87713.firebasestorage.app",
   messagingSenderId: "169349902043",
