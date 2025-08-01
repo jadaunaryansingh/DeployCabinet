@@ -21,6 +21,8 @@ declare global {
   interface Window {
     google: any;
     initMap: () => void;
+    googleMapsLoading?: boolean;
+    googleMapsNotificationShown?: boolean;
   }
 }
 
@@ -571,6 +573,12 @@ export default function GoogleMapsIntegration({
       return;
     }
 
+    // Check if script is already loading globally
+    if (window.googleMapsLoading) {
+      console.log('🗺️ Google Maps API script already loading globally');
+      return;
+    }
+
     // Check if script is already loading
     const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
     if (existingScript) {
@@ -580,10 +588,16 @@ export default function GoogleMapsIntegration({
 
     console.log('🗺️ Loading Google Maps API with key:', apiKey.substring(0, 10) + '...');
 
+    // Set global loading flag
+    window.googleMapsLoading = true;
+
     // Create global callback function
     window.initMap = () => {
       console.log('✅ Google Maps API loaded successfully');
-      if (addNotification) {
+      window.googleMapsLoading = false;
+      // Only show notification once
+      if (addNotification && !window.googleMapsNotificationShown) {
+        window.googleMapsNotificationShown = true;
         addNotification('success', 'Google Maps loaded successfully!');
       }
     };
@@ -594,6 +608,7 @@ export default function GoogleMapsIntegration({
     script.defer = true;
     script.onerror = () => {
       console.error('❌ Failed to load Google Maps API');
+      window.googleMapsLoading = false;
       if (addNotification) {
         addNotification('error', 'Failed to load Google Maps. Please check your API key.');
       }
