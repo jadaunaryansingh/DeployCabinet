@@ -342,41 +342,76 @@ export default function GoogleMapsIntegration({
         const { latitude, longitude } = position.coords;
         console.log(`📍 Location detected: ${latitude}, ${longitude}`);
 
-        if (mapInstanceRef.current && window.google) {
-          const location = new window.google.maps.LatLng(latitude, longitude);
-          
-          mapInstanceRef.current.setCenter(location);
-          mapInstanceRef.current.setZoom(16);
+        // Wait for map to be ready
+        const waitForMap = () => {
+          if (mapInstanceRef.current && window.google && isMapReady) {
+            try {
+              const location = new window.google.maps.LatLng(latitude, longitude);
+              
+              // Center map on detected location
+              mapInstanceRef.current.setCenter(location);
+              mapInstanceRef.current.setZoom(16);
 
-          // Remove existing marker
-          if (currentLocationMarkerRef.current) {
-            currentLocationMarkerRef.current.setMap(null);
-          }
+              // Remove existing marker
+              if (currentLocationMarkerRef.current) {
+                currentLocationMarkerRef.current.setMap(null);
+              }
 
-          // Add new marker
-          const marker = new window.google.maps.Marker({
-            position: location,
-            map: mapInstanceRef.current,
-            title: "📍 You are here",
-            animation: window.google.maps.Animation.DROP
-          });
+              // Add new marker with better visibility
+              const marker = new window.google.maps.Marker({
+                position: location,
+                map: mapInstanceRef.current,
+                title: "📍 You are here",
+                animation: window.google.maps.Animation.DROP,
+                icon: {
+                  url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="16" cy="16" r="12" fill="#D89000" stroke="#FFFFFF" stroke-width="2"/>
+                      <circle cx="16" cy="16" r="6" fill="#FFFFFF"/>
+                    </svg>
+                  `),
+                  scaledSize: new window.google.maps.Size(32, 32),
+                  anchor: new window.google.maps.Point(16, 16)
+                }
+              });
 
-          currentLocationMarkerRef.current = marker;
+              currentLocationMarkerRef.current = marker;
 
-          // Reverse geocoding
-          const geocoder = new window.google.maps.Geocoder();
-          geocoder.geocode({ location: location }, (results: any, status: any) => {
-            if (!isMountedRef.current) return;
+              // Reverse geocoding to get address
+              const geocoder = new window.google.maps.Geocoder();
+              geocoder.geocode({ location: location }, (results: any, status: any) => {
+                if (!isMountedRef.current) return;
 
-            if (status === 'OK' && results?.[0]) {
-              onPickupChange(results[0].formatted_address);
-            } else {
-              onPickupChange(`Current Location (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`);
+                if (status === 'OK' && results?.[0]) {
+                  const address = results[0].formatted_address;
+                  console.log('📍 Address found:', address);
+                  onPickupChange(address);
+                } else {
+                  const fallbackAddress = `Current Location (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`;
+                  console.log('📍 Using fallback address:', fallbackAddress);
+                  onPickupChange(fallbackAddress);
+                }
+                
+                safeSetState(() => setIsDetectingLocation(false));
+              });
+
+              console.log('✅ Location marker placed successfully');
+            } catch (error) {
+              console.error('❌ Error placing location marker:', error);
+              safeSetState(() => setIsDetectingLocation(false));
             }
-            
-            safeSetState(() => setIsDetectingLocation(false));
-          });
-        }
+          } else {
+            // Map not ready yet, wait a bit and try again
+            console.log('🗺️ Map not ready, waiting...');
+            setTimeout(waitForMap, 500);
+          }
+        };
+
+        waitForMap();
+        
+        // Fallback: Update pickup field immediately with coordinates
+        const fallbackAddress = `Current Location (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`;
+        onPickupChange(fallbackAddress);
       },
       (error) => {
         if (!isMountedRef.current) return;
