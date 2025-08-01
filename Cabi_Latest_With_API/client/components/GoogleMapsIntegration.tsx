@@ -565,31 +565,48 @@ export default function GoogleMapsIntegration({
       return;
     }
 
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps) {
+      console.log('🗺️ Google Maps API already loaded');
+      return;
+    }
+
+    // Check if script is already loading
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existingScript) {
+      console.log('🗺️ Google Maps API script already loading');
+      return;
+    }
+
     console.log('🗺️ Loading Google Maps API with key:', apiKey.substring(0, 10) + '...');
 
-    // Check if script already exists
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
-    if (!existingScript) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => {
-        console.error('❌ Failed to load Google Maps API');
-        addNotification('error', 'Failed to load Google Maps. Please check your API key.');
-      };
-      script.onload = () => {
-        console.log('✅ Google Maps API loaded successfully');
+    // Create global callback function
+    window.initMap = () => {
+      console.log('✅ Google Maps API loaded successfully');
+      if (addNotification) {
         addNotification('success', 'Google Maps loaded successfully!');
-      };
-      document.body.appendChild(script);
-      return () => {
-        if (document.body.contains(script)) {
-          document.body.removeChild(script);
-        }
-      };
-    }
-    return undefined;
+      }
+    };
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initMap&loading=async`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => {
+      console.error('❌ Failed to load Google Maps API');
+      if (addNotification) {
+        addNotification('error', 'Failed to load Google Maps. Please check your API key.');
+      }
+    };
+    
+    document.head.appendChild(script);
+    
+    return () => {
+      // Clean up callback
+      if (window.initMap) {
+        delete window.initMap;
+      }
+    };
   }, [addNotification]);
 
   return (
