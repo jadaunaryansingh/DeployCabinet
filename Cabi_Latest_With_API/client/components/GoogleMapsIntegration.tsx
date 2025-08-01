@@ -33,11 +33,14 @@ export default function GoogleMapsIntegration({
 }: GoogleMapsIntegrationProps) {
   const { addNotification } = useAppState();
 
-  // Saved locations
+  // Saved locations with popular destinations
   const savedLocations = [
     { name: 'Home', address: 'Koramangala 5th Block, Bangalore, Karnataka, India', icon: '🏠' },
     { name: 'Office', address: 'Electronic City Phase 1, Bangalore, Karnataka, India', icon: '🏢' },
-    { name: 'Airport', address: 'Kempegowda International Airport, Devanahalli, Bangalore, Karnataka, India', icon: '✈️' }
+    { name: 'Airport', address: 'Kempegowda International Airport, Devanahalli, Bangalore, Karnataka, India', icon: '✈️' },
+    { name: 'Mall', address: 'Phoenix Marketcity, Whitefield, Bangalore, Karnataka, India', icon: '🛍️' },
+    { name: 'Hospital', address: 'Manipal Hospital, HAL Airport Road, Bangalore, Karnataka, India', icon: '🏥' },
+    { name: 'Station', address: 'Bangalore City Railway Station, Bangalore, Karnataka, India', icon: '🚉' }
   ];
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -174,7 +177,7 @@ export default function GoogleMapsIntegration({
     };
   }, []);
 
-  // Search for location suggestions
+  // Search for location suggestions using Google Places API
   const searchLocations = useCallback((query: string, isPickup: boolean) => {
     if (!query || query.length < 3 || !window.google?.maps) {
       safeSetState(() => {
@@ -199,39 +202,101 @@ export default function GoogleMapsIntegration({
       }
     });
 
-    const geocoder = new window.google.maps.Geocoder();
-    
-    geocoder.geocode({
-      address: query,
-      region: 'IN',
-      componentRestrictions: { country: 'IN' }
-    }, (results: any, status: any) => {
-      if (!isMountedRef.current) return;
+    // Try Places API first for better autocomplete
+    if (window.google.maps.places) {
+      const service = new window.google.maps.places.AutocompleteService();
+      service.getPlacePredictions({
+        input: query,
+        componentRestrictions: { country: 'IN' },
+        types: ['geocode', 'establishment']
+      }, (predictions: any, status: any) => {
+        if (!isMountedRef.current) return;
 
-      safeSetState(() => {
-        if (isPickup) {
-          setIsSearchingPickup(false);
-        } else {
-          setIsSearchingDestination(false);
-        }
-
-        if (status === 'OK' && results?.length > 0) {
-          const suggestions = results.slice(0, 5).map((result: any) => ({
-            place_id: result.place_id,
-            description: result.formatted_address,
-            formatted_address: result.formatted_address
-          }));
-
+        safeSetState(() => {
           if (isPickup) {
-            setPickupSuggestions(suggestions);
-            setShowPickupSuggestions(true);
+            setIsSearchingPickup(false);
           } else {
-            setDestinationSuggestions(suggestions);
-            setShowDestinationSuggestions(true);
+            setIsSearchingDestination(false);
           }
-        }
+
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions?.length > 0) {
+            const suggestions = predictions.slice(0, 5).map((prediction: any) => ({
+              place_id: prediction.place_id,
+              description: prediction.description,
+              formatted_address: prediction.description
+            }));
+
+            if (isPickup) {
+              setPickupSuggestions(suggestions);
+              setShowPickupSuggestions(true);
+            } else {
+              setDestinationSuggestions(suggestions);
+              setShowDestinationSuggestions(true);
+            }
+          } else {
+            // Fallback to Geocoder if Places API fails
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({
+              address: query,
+              region: 'IN',
+              componentRestrictions: { country: 'IN' }
+            }, (results: any, geocodeStatus: any) => {
+              if (!isMountedRef.current) return;
+
+              if (geocodeStatus === 'OK' && results?.length > 0) {
+                const suggestions = results.slice(0, 5).map((result: any) => ({
+                  place_id: result.place_id,
+                  description: result.formatted_address,
+                  formatted_address: result.formatted_address
+                }));
+
+                if (isPickup) {
+                  setPickupSuggestions(suggestions);
+                  setShowPickupSuggestions(true);
+                } else {
+                  setDestinationSuggestions(suggestions);
+                  setShowDestinationSuggestions(true);
+                }
+              }
+            });
+          }
+        });
       });
-    });
+    } else {
+      // Fallback to Geocoder if Places API is not available
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({
+        address: query,
+        region: 'IN',
+        componentRestrictions: { country: 'IN' }
+      }, (results: any, status: any) => {
+        if (!isMountedRef.current) return;
+
+        safeSetState(() => {
+          if (isPickup) {
+            setIsSearchingPickup(false);
+          } else {
+            setIsSearchingDestination(false);
+          }
+
+          if (status === 'OK' && results?.length > 0) {
+            const suggestions = results.slice(0, 5).map((result: any) => ({
+              place_id: result.place_id,
+              description: result.formatted_address,
+              formatted_address: result.formatted_address
+            }));
+
+            if (isPickup) {
+              setPickupSuggestions(suggestions);
+              setShowPickupSuggestions(true);
+            } else {
+              setDestinationSuggestions(suggestions);
+              setShowDestinationSuggestions(true);
+            }
+          }
+        });
+      });
+    }
   }, [safeSetState]);
 
   // Debounced search effects
@@ -386,10 +451,23 @@ export default function GoogleMapsIntegration({
           const distance = leg.distance.text;
           const duration = leg.duration.text;
           
-          const distanceInKm = leg.distance.value / 1000;
-          const durationInMin = leg.duration.value / 60;
-          const fare = Math.round(distanceInKm * 10 + durationInMin * 2);
-          const fareText = `₹${fare}`;
+                     const distanceInKm = leg.distance.value / 1000;
+           const durationInMin = leg.duration.value / 60;
+           
+           // Enhanced fare calculation based on distance and time
+           let baseFare = 50; // Base fare
+           let distanceFare = distanceInKm * 12; // ₹12 per km
+           let timeFare = durationInMin * 1.5; // ₹1.5 per minute
+           let totalFare = Math.round(baseFare + distanceFare + timeFare);
+           
+           // Add surge pricing for peak hours (6-9 AM and 6-9 PM)
+           const currentHour = new Date().getHours();
+           const isPeakHour = (currentHour >= 6 && currentHour <= 9) || (currentHour >= 18 && currentHour <= 21);
+           if (isPeakHour) {
+             totalFare = Math.round(totalFare * 1.2); // 20% surge
+           }
+           
+           const fareText = `₹${totalFare}`;
 
           // Extract coordinates from route
           const pickupCoords = {
@@ -478,20 +556,41 @@ export default function GoogleMapsIntegration({
   }, [safeSetState]);
 
   useEffect(() => {
+    // Check if Google Maps API key is available
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey) {
+      console.warn('⚠️ Google Maps API key not configured. Location features will be limited.');
+      addNotification('warning', 'Google Maps API key not configured. Location features are limited.');
+      return;
+    }
+
+    console.log('🗺️ Loading Google Maps API with key:', apiKey.substring(0, 10) + '...');
+
     // Check if script already exists
     const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
     if (!existingScript) {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initMap`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initMap`;
       script.async = true;
       script.defer = true;
+      script.onerror = () => {
+        console.error('❌ Failed to load Google Maps API');
+        addNotification('error', 'Failed to load Google Maps. Please check your API key.');
+      };
+      script.onload = () => {
+        console.log('✅ Google Maps API loaded successfully');
+        addNotification('success', 'Google Maps loaded successfully!');
+      };
       document.body.appendChild(script);
       return () => {
-        document.body.removeChild(script);
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
       };
     }
     return undefined;
-  }, []);
+  }, [addNotification]);
 
   return (
     <div className="space-y-6">
@@ -623,6 +722,8 @@ export default function GoogleMapsIntegration({
             ))}
           </div>
         </div>
+
+
       </div>
 
       {/* Map Container - Completely isolated */}
@@ -675,7 +776,7 @@ export default function GoogleMapsIntegration({
             <span>Route Information</span>
           </h3>
           
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <RouteIcon className="w-5 h-5 text-cabinet-yellow" />
@@ -698,6 +799,37 @@ export default function GoogleMapsIntegration({
                 <span className="text-cabinet-grey text-sm">Estimated Fare</span>
               </div>
               <div id="fare" className="text-cabinet-yellow font-bold text-xl">{routeInfo.fare}</div>
+            </div>
+          </div>
+
+          {/* Nearby Drivers */}
+          <div className="border-t border-cabinet-yellow/20 pt-4">
+            <h4 className="text-white font-medium mb-3 flex items-center space-x-2">
+              <span className="text-lg">🚗</span>
+              <span>Nearby Drivers</span>
+            </h4>
+            <div className="space-y-3">
+              {[
+                { name: 'Rajesh Kumar', rating: 4.9, eta: '2 min', vehicle: 'KA 05 MZ 1234', distance: '0.5 km' },
+                { name: 'Arjun Singh', rating: 4.8, eta: '4 min', vehicle: 'KA 03 AB 5678', distance: '1.2 km' },
+                { name: 'Suresh Reddy', rating: 4.7, eta: '6 min', vehicle: 'KA 02 CD 9012', distance: '1.8 km' }
+              ].map((driver, index) => (
+                <div key={index} className="flex items-center justify-between p-3 glass-morphism rounded-xl border border-cabinet-yellow/20">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-cabinet-yellow/20 rounded-full flex items-center justify-center">
+                      <span className="text-lg">👨‍💼</span>
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">{driver.name}</div>
+                      <div className="text-cabinet-grey text-sm">⭐ {driver.rating} • {driver.vehicle}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-cabinet-yellow font-medium">{driver.eta}</div>
+                    <div className="text-cabinet-grey text-sm">{driver.distance}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
