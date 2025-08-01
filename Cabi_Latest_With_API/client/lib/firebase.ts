@@ -19,13 +19,13 @@ const isFirebaseConfigured = () => {
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyA1YPpvErdlMlWoYMat1L0rxmvsqqVIdtY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "luxury-pixie-1db267.netlify.app",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "cab-i-net-87713",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "cab-i-net-87713.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "169349902043",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:169349902043:web:8fc2fd21afdd8f16c1e6fe",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-V2JDVWRYXS"
+  apiKey: "AIzaSyA1YPpvErdlMlWoYMat1L0rxmvsqqVIdtY",
+  authDomain: "luxury-pixie-1db267.netlify.app",
+  projectId: "cab-i-net-87713",
+  storageBucket: "cab-i-net-87713.firebasestorage.app",
+  messagingSenderId: "169349902043",
+  appId: "1:169349902043:web:8fc2fd21afdd8f16c1e6fe",
+  measurementId: "G-V2JDVWRYXS"
 };
 
 // Initialize Firebase only if properly configured
